@@ -4,7 +4,7 @@ Run DeepSeek Harness (`dsh`) natively in Termux with minimal patches: no proot, 
 
 Two small versioned patches and one `LD_PRELOAD` shim are all it takes.
 
-Verified with `@deepseek-ai/dsh@0.2.2-rc.2` on Android 16 / aarch64.
+Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
 
 ## How it works
 
