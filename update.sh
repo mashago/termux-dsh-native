@@ -11,7 +11,7 @@
 set -uo pipefail
 
 ACTION="update"
-REPO="${TERMUX_DSH_REPO:-}"
+REPO="${TERMUX_DSH_REPO:-mashago/termux-dsh-native}"
 TAG="${TERMUX_DSH_RELEASE:-latest}"
 PASS=()
 

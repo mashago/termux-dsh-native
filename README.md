@@ -44,14 +44,14 @@ The installer only checks these packages. If something is missing it stops and p
 ### From a GitHub release
 
 ```sh
-curl -fsSL https://github.com/<owner>/termux-dsh-native/releases/latest/download/install.sh \
+curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download/install.sh \
   | bash -s -- -y
 ```
 
 ### From a git clone
 
 ```sh
-git clone https://github.com/<owner>/termux-dsh-native
+git clone https://github.com/mashago/termux-dsh-native
 cd termux-dsh-native
 bash install.sh -y
 ```
@@ -76,7 +76,7 @@ Open the printed URL after install (or use `~/start_dsh.sh status` later). The f
 ### From a GitHub release
 
 ```sh
-curl -fsSL https://github.com/<owner>/termux-dsh-native/releases/latest/download/update.sh \
+curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download/update.sh \
   | bash -s -- 0.2.2-rc.2 -y
 ```
 
