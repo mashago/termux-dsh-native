@@ -1,0 +1,5 @@
+{
+  "versions": ["0.2.2-rc.2"],
+  "default": true,
+  "notes": "Initial Termux port. Anchors verified against @deepseek-ai/dsh@0.2.2-rc.2 compiled lib output."
+}

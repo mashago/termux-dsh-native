@@ -1,0 +1,14 @@
+# Release output
+release/
+
+# Local build outputs
+shim/.build-sysroot/
+shim/*.o
+shim/libdsh-termux-native-link.so
+
+# Editor / OS noise
+*.swp
+.DS_Store
+
+# Node artifacts (not used here, kept for safety)
+node_modules/
