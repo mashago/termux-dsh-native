@@ -1,5 +1,6 @@
 {
   "versions": ["0.2.2-rc.3"],
   "extends": "0.2.2-rc.2",
+  "default": true,
   "notes": "Anchors and rewritten functions verified identical to 0.2.2-rc.2 (2026-11-14)."
 }
