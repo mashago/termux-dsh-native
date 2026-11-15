@@ -6,6 +6,10 @@ Two small versioned patches, one `LD_PRELOAD` shim, and a few Node/pnpm deployme
 
 Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
 
+<img src="screenshots/dsh-web-termux.jpg" alt="dsh web running in Termux on an Android phone" width="400">
+
+dsh web running in Termux on the phone; the agent reports its own pid and loopback entry.
+
 ## How it works
 
 - **Link shim** (`dist/libdsh-termux-native-link.so`). Android rejects `link()` in app-private storage with `EACCES`. The shim turns it into copy → `fsync` → `renameat2(RENAME_NOREPLACE)`, preserving dsh's atomic publishes, and unsets `LD_PRELOAD` for child processes.
@@ -171,6 +175,20 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim),
 bash install.sh --uninstall               # keeps ~/.dsh
 bash install.sh --uninstall --purge-home  # also deletes sessions and credentials
 ```
+
+## Troubleshooting: paused service
+
+If the web UI stops responding and `~/start_dsh.sh status` reports `paused`, the dsh process was stopped by `SIGSTOP`; runit marks it paused. This is not a crash. Android/OEM battery management can freeze background processes.
+
+```sh
+~/start_dsh.sh start        # detects paused and runs sv cont
+~/start_dsh.sh restart      # also handles a paused service
+SVDIR=$PREFIX/var/service sv cont dsh-web   # direct resume
+```
+
+After resuming, refresh the web UI. A bare `http://127.0.0.1:3080/` returns 401 until the browser has the token cookie; use the token URL printed by `~/start_dsh.sh status`.
+
+To reduce recurrence, set Termux to unrestricted battery/background use in Android settings, disable any OEM "background freeze" for Termux, acquire a Termux wake lock (`termux-wake-lock`), and exclude Termux from battery-saver app management.
 
 ## License
 
