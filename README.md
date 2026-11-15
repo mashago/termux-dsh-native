@@ -22,6 +22,7 @@ Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
 - **Termux glibc 2.44** (`glibc-repo`, `glibc`, `glibc-runner`) plus `patchelf`. Node is the official linux-arm64 build with only its ELF interpreter patched.
 - **No Landlock.** dsh's `workspace-write` sandbox fails closed, so the install pins `DSH_PERMISSION_MODE=danger-full-access`. dsh's file fence is off; the Android app sandbox (Termux UID) is the real boundary.
 - **You open the browser.** The launch path is untouched: `dsh web --no-open`, then visit the token URL. Cookies keep upstream `SameSite=Strict`, which is correct for address-bar visits.
+- **No `node` on the agent PATH.** dsh's PATH does not include `$DSH_ROOT/node/bin`, so the agent's bash tool cannot run `node` by name. Use the absolute path, or add a `node` wrapper and PATH entry if you need it.
 - **Only supported dsh versions.** Versions not covered by a rewrite set are refused before anything changes.
 - **~3 GB free space** and network for the first `npm install` (~1.2 GB dependency tree).
 
@@ -30,7 +31,7 @@ Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
 ### Prerequisites
 
 ```sh
-pkg install -y glibc-repo glibc glibc-runner termux-services coreutils curl tar xz-utils
+pkg install -y glibc-repo glibc glibc-runner termux-services termux-tools coreutils curl tar xz-utils
 ```
 
 The git-clone route also needs:
@@ -39,7 +40,7 @@ The git-clone route also needs:
 pkg install -y git
 ```
 
-The installer only checks these packages. If something is missing it stops and prints the exact command; it never changes system packages itself.
+The installer checks glibc, termux-services, and the required commands. `termux-tools` is normally part of Termux and provides `termux-open-url` for the BROWSER helper. If something is missing the installer stops and prints the exact command; it never changes system packages itself.
 
 ### From a GitHub release
 
@@ -59,7 +60,7 @@ cd termux-dsh-native
 bash install.sh -y
 ```
 
-Both routes run the same installer: verify prerequisites, install or pin Node and dsh, deploy the runtime, apply the matching rewrites, verify, and start `dsh-web`. Flags: `--dsh-version <v>`, `--root <path>`, `--no-start`, `--uninstall`.
+Both routes run the same installer: verify prerequisites, install or pin Node and dsh, deploy the runtime, apply the matching rewrites, verify, and start `dsh-web`. Flags: `--dsh-version <v>`, `--release <tag>`, `--repo <owner/repo>`, `--root <path>`, `--no-start`, `--check`, `--uninstall`.
 
 Open the printed URL after install (or use `~/start_dsh.sh status` later). The first visit trades the token for a 30-day cookie; afterwards `http://127.0.0.1:3080/` works directly.
 
@@ -88,12 +89,14 @@ curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download
 
 ```sh
 git pull
-bash update.sh 0.2.2-rc.2 -y    # pin a version; omit it to use the release's tested version
+bash update.sh 0.2.2-rc.3 -y    # pin a version; omit it to use the release's tested version
 bash update.sh --check          # installed vs. supported versions
 bash update.sh --rollback -y    # restore the previous version from install-state.json
 ```
 
 The updater validates the target against the packaged rewrite sets before stopping anything, backs up runtime files, upgrades Node when required, reinstalls dsh, reapplies rewrites, verifies, and restores the previous service state. Failures roll back.
+
+`update.sh` flags: `--check`, `--rollback`, `--backup-home`, `--no-restart`, `--force`, `--release <tag>`, `--repo <owner/repo>`, `--root <path>`, `--dsh-version <v>`.
 
 Existing profiles whose `node_modules` was created by pnpm 9 need the one-time rebuild described in [Plugin management](#plugin-management).
 
@@ -103,6 +106,8 @@ The installer deploys two helpers so the web UI and `dsh plugin` can install plu
 
 - `~/.local/bin/pnpm` runs **pnpm 11.28.5** (the version dsh 0.2.2-rc.3 expects) through Corepack; override the pin with `DSH_PNPM_VERSION`.
 - `$DSH_ROOT/bin/npm` is a shim for Node's bundled npm, which Android cannot execute directly.
+
+The npm shim covers Android's missing `/usr/bin/env` for Node's npm shebang; the pnpm pin is required because pnpm 9 rejects `pnpm add` in dsh's profile workspace.
 
 The `dsh` wrapper puts `~/.local/bin` on `PATH`, so `dsh plugin` also works from non-interactive shells. The installer adds it to `~/.bashrc` and the `dsh-web` service script puts it on `PATH` as well.
 
@@ -147,8 +152,6 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim),
 
 - Token: `~/.local/opt/dsh/etc/web-token` (mode 600). Replace it and restart `dsh-web` to rotate; cookies last 30 days.
 - Plugin helpers are project-managed: edit `bin/*-wrapper.sh` or `helpers.list` in the project, not the deployed copies. Install and update overwrite them.
-- Why the plugin helpers exist: Android has no `/usr/bin/env` for Node's npm shebang, and pnpm 9 rejects `add` in dsh's profile workspace; the wrappers run npm through the bundled Node and pin pnpm 11.28.5.
-- Agent bash sessions cannot run `node` by name: the service `PATH` does not include `$DSH_ROOT/node/bin`. Use the absolute path, or add a `node` wrapper and PATH entry if you need it.
 - Back up `~/.dsh` before upgrades, excluding `~/.dsh/cache`.
 - Never run `npm install` without `--ignore-scripts`; koffi tries to compile.
 - `update.sh --backup-home` tars `~/.dsh` (minus cache) first.
@@ -157,7 +160,7 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim),
 
 - Shim: `cd shim && make fetch-sysroot && make && make device-link`, then copy the `.so` into `dist/`.
 - New dsh version: see `rewrites/README.md`; a compatible version needs only `{"versions":["<v>"],"extends":"<existing-set>"}`.
-- Release: `./make-release.sh --project v0.3.0 --tested-dsh 0.2.2-rc.2`, then attach `release/*` to a GitHub release.
+- Release: `./make-release.sh --project v0.3.0 --tested-dsh 0.2.2-rc.3`, then attach `release/*` to a GitHub release.
 - In the wrapper, bionic commands must run before `LD_PRELOAD` is set.
 
 ## Uninstall
