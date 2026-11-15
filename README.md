@@ -95,13 +95,13 @@ Existing profiles whose `node_modules` was created by pnpm 9 need the one-time r
 
 ## Plugin management
 
-The installer deploys three helpers so the web UI and `dsh plugin` can install plugins through pnpm:
+The installer deploys two helpers (plus a deprecated `dsh-install` alias) so the web UI and `dsh plugin` can install plugins through pnpm:
 
 - `~/.local/bin/pnpm` runs **pnpm 11.28.5** (the version dsh 0.2.2-rc.3 expects) through Corepack; override the pin with `DSH_PNPM_VERSION`.
 - `$DSH_ROOT/bin/npm` is a shim for Node's bundled npm, which Android cannot execute directly.
-- `~/.local/bin/dsh-install` runs the dsh CLI under the bundled Node for one-shot plugin work.
+- `~/.local/bin/dsh-install` is a deprecated alias for `dsh`, kept for existing scripts.
 
-The installer adds `~/.local/bin` to `~/.bashrc`, and the `dsh-web` service script puts it on `PATH`. A non-interactive shell does not read `.bashrc`; use `PATH="$HOME/.local/bin:$PATH" dsh plugin ...` or `dsh-install` there.
+The `dsh` wrapper puts `~/.local/bin` on `PATH`, so `dsh plugin` also works from non-interactive shells. The installer adds it to `~/.bashrc` and the `dsh-web` service script puts it on `PATH` as well.
 
 If Corepack must download pnpm, it uses npm's default registry; set `COREPACK_NPM_REGISTRY=https://registry.npmmirror.com` for the mainland mirror.
 
@@ -131,13 +131,13 @@ rewrites/
   apply-rewrites.{sh,mjs}     version -> rewrite set dispatcher
   lib/common.mjs              backups, atomic writes, syntax checks, markers
   sets/<set>/                 manifest.json + index.mjs
-bin/                          dsh wrapper, BROWSER opener, npm/pnpm/dsh-install helpers
+bin/                          dsh wrapper, BROWSER opener, npm shim, pnpm wrapper, dsh-install alias
 start_dsh.sh / start_sshd.sh  service management and sshd startup
 verify-install.sh             post-install checks
 smoke-web.sh                  dsh web startup/HTTP smoke test
 ```
 
-Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim), `bin/` (dsh, dsh-open, npm), `tools/` (rewrites), `etc/web-token`, `backups/`, plus `rewrites-state.json`, `install-state.json`. `~/.local/bin` holds `dsh`, `pnpm`, and `dsh-install`. dsh data lives in `~/.dsh`.
+Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim), `bin/` (dsh, dsh-open, npm), `tools/` (rewrites), `etc/web-token`, `backups/`, plus `rewrites-state.json`, `install-state.json`. `~/.local/bin` holds `dsh`, `pnpm`, and the deprecated `dsh-install` alias. dsh data lives in `~/.dsh`.
 
 ## Notes
 

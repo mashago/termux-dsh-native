@@ -26,6 +26,10 @@ if [ -r "$DSH_ROOT/etc/web-token" ]; then
   export DSH_WEB_TOKEN
 fi
 
+# Non-interactive shells do not read ~/.bashrc. Put the runtime's own tools on
+# PATH so `dsh plugin` can find the pnpm wrapper and the other helpers.
+export PATH="$HOME/.local/bin${PATH:+:$PATH}"
+
 unset LD_PRELOAD
 export LD_PRELOAD="$SHIM"
 
