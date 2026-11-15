@@ -587,7 +587,9 @@ do_install_or_update() {
   fi
 
   step "Deploy runtime files"
-  if ! deploy_runtime; then
+  deploy_runtime
+  local deploy_status=$?
+  if [ "$deploy_status" -ne 0 ]; then
     warn "deploy step failed; rolling back"
     restore_runtime "$backup_dir"
     if [ -n "$previous_version" ] && [ "$previous_version" != "$TARGET" ]; then

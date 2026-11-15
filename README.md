@@ -142,7 +142,7 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim),
 ## Notes
 
 - Token: `~/.local/opt/dsh/etc/web-token` (mode 600). Replace it and restart `dsh-web` to rotate; cookies last 30 days.
-- Plugin helpers are project-managed: edit `bin/*-wrapper.sh` in the project, not the deployed copies. Install and update overwrite them.
+- Plugin helpers are project-managed: edit `bin/*-wrapper.sh` or `helpers.list` in the project, not the deployed copies. Install and update overwrite them.
 - Why the plugin helpers exist: Android has no `/usr/bin/env` for Node's npm shebang, and pnpm 9 rejects `add` in dsh's profile workspace; the wrappers run npm through the bundled Node and pin pnpm 11.28.5.
 - Agent bash sessions cannot run `node` by name: the service `PATH` does not include `$DSH_ROOT/node/bin`. Use the absolute path, or add a `node` wrapper and PATH entry if you need it.
 - Back up `~/.dsh` before upgrades, excluding `~/.dsh/cache`.
