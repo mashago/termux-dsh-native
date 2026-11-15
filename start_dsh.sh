@@ -53,7 +53,7 @@ ensure_service() {
 #!/data/data/com.termux/files/usr/bin/sh
 export HOME="$HOME_DIR"
 export PREFIX="$PREFIX"
-export PATH="$PREFIX/bin:$HOME_DIR/.local/bin:\$PATH"
+export PATH="$HOME_DIR/.local/bin:$PREFIX/bin:\$PATH"
 export SVDIR="$SVDIR"
 export LOGDIR="$LOGDIR"
 cd "$WORKSPACE" 2>/dev/null || cd "$HOME_DIR"

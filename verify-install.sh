@@ -24,14 +24,13 @@ check "dsh web frontend dist" test -f "$ROOT/work/node_modules/@deepseek-ai/dsh-
 check "node-pty prebuild" test -f "$ROOT/work/node_modules/node-pty/prebuilds/linux-arm64/pty.node"
 check "flock addon" test -f "$ROOT/work/node_modules/@deepseek-ai/node-addon-system-linux-arm64/bin/glibc/system.node"
 check "ripgrep prebuild" test -x "$ROOT/work/node_modules/@vscode/ripgrep-linux-arm64/bin/rg"
-check "sharp prebuild" test -f "$ROOT/work/node_modules/@img/sharp-linux-arm64/lib/sharp-linux-arm64-0.35.5.node"
+check "sharp prebuild" bash -c 'compgen -G "$1/@img/sharp-linux-arm64/lib/sharp-linux-arm64-*.node" >/dev/null' _ "$ROOT/work/node_modules"
 check "link shim" test -r "$SHIM"
 check "wrapper" test -x "$HOME/.local/bin/dsh"
 check "browser opener" test -x "$ROOT/bin/dsh-open"
 check "npm shim" test -x "$ROOT/bin/npm"
 check "pnpm wrapper" test -x "$HOME/.local/bin/pnpm"
 check "dsh-install wrapper" test -x "$HOME/.local/bin/dsh-install"
-check "unset-ld-preload preload" test -f "$ROOT/lib/unset-ld-preload.cjs"
 
 if [ -x "$NODE" ]; then
   echo "INFO node: $(env -u LD_PRELOAD "$NODE" --version 2>&1)"

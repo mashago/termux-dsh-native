@@ -30,7 +30,7 @@ cp "$HERE/bin/dsh-open.sh" "$ROOT/bin/dsh-open"
 cp "$HERE/bin/npm-wrapper.sh" "$ROOT/bin/npm"
 cp "$HERE/bin/pnpm-wrapper.sh" "$BIN/pnpm"
 cp "$HERE/bin/dsh-install.sh" "$BIN/dsh-install"
-cp "$HERE/lib/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
+rm -f "$ROOT/lib/unset-ld-preload.cjs"
 cp "$HERE/rewrites/apply-rewrites.sh" "$ROOT/tools/apply-rewrites.sh"
 cp "$HERE/rewrites/apply-rewrites.mjs" "$ROOT/tools/apply-rewrites.mjs"
 rm -rf "$ROOT/tools/lib" "$ROOT/tools/sets"
@@ -43,7 +43,7 @@ chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" "$ROOT/bin/npm" \
   "$BIN/pnpm" "$BIN/dsh-install" \
   "$ROOT/tools/apply-rewrites.sh" "$ROOT/tools/verify-install.sh" \
   "$HOME/start_dsh.sh" "$HOME/start_sshd.sh"
-chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/unset-ld-preload.cjs"
+chmod 644 "$ROOT/tools/apply-rewrites.mjs"
 
 ln -sfn "$ROOT/bin/dsh" "$BIN/dsh"
 

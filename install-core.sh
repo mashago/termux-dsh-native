@@ -278,16 +278,28 @@ backup_runtime() {
   local stamp dir
   stamp="$(date +%Y%m%d-%H%M%S)"
   dir="$ROOT/backups/runtime/$stamp"
-  mkdir -p "$dir"
-  [ -d "$ROOT/tools" ] && cp -R "$ROOT/tools" "$dir/tools"
-  [ -d "$ROOT/bin" ] && cp -R "$ROOT/bin" "$dir/bin"
-  mkdir -p "$dir/local-bin"
+  mkdir -p "$dir" || die "cannot create runtime backup: $dir"
+  if [ -d "$ROOT/tools" ]; then
+    cp -R "$ROOT/tools" "$dir/tools" || die "runtime backup failed: tools"
+  fi
+  if [ -d "$ROOT/bin" ]; then
+    cp -R "$ROOT/bin" "$dir/bin" || die "runtime backup failed: bin"
+  fi
+  if [ -d "$ROOT/lib" ]; then
+    cp -R "$ROOT/lib" "$dir/lib" || die "runtime backup failed: lib"
+  else
+    warn "runtime backup: $ROOT/lib is missing"
+  fi
+  mkdir -p "$dir/local-bin" || die "cannot create runtime backup: local-bin"
   for f in pnpm dsh-install; do
-    [ -f "$HOME/.local/bin/$f" ] && cp -p "$HOME/.local/bin/$f" "$dir/local-bin/$f"
+    if [ -f "$HOME/.local/bin/$f" ]; then
+      cp -p "$HOME/.local/bin/$f" "$dir/local-bin/$f" || die "runtime backup failed: $f"
+    fi
   done
-  [ -f "$ROOT/lib/unset-ld-preload.cjs" ] && cp -p "$ROOT/lib/unset-ld-preload.cjs" "$dir/unset-ld-preload.cjs"
   for f in start_dsh.sh start_sshd.sh; do
-    [ -f "$HOME/$f" ] && cp -p "$HOME/$f" "$dir/$f"
+    if [ -f "$HOME/$f" ]; then
+      cp -p "$HOME/$f" "$dir/$f" || die "runtime backup failed: $f"
+    fi
   done
   printf '%s' "$dir"
 }
@@ -296,23 +308,28 @@ restore_runtime() {
   local dir="$1"
   [ -n "$dir" ] && [ -d "$dir" ] || return 0
   rm -rf "$ROOT/tools" "$ROOT/bin"
-  cp -R "$dir/tools" "$ROOT/tools"
-  cp -R "$dir/bin" "$ROOT/bin"
-  mkdir -p "$ROOT/lib" "$HOME/.local/bin"
-  if [ -f "$dir/unset-ld-preload.cjs" ]; then
-    cp -p "$dir/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
+  cp -R "$dir/tools" "$ROOT/tools" || warn "runtime restore failed: tools"
+  cp -R "$dir/bin" "$ROOT/bin" || warn "runtime restore failed: bin"
+  if [ -d "$dir/lib" ]; then
+    rm -rf "$ROOT/lib"
+    cp -R "$dir/lib" "$ROOT/lib" || warn "runtime restore failed: lib"
   else
-    rm -f "$ROOT/lib/unset-ld-preload.cjs"
+    mkdir -p "$ROOT/lib"
+    warn "runtime backup has no lib; keeping the current link shim"
   fi
+  rm -f "$ROOT/lib/unset-ld-preload.cjs"
+  mkdir -p "$HOME/.local/bin"
   for f in pnpm dsh-install; do
     if [ -f "$dir/local-bin/$f" ]; then
-      cp -p "$dir/local-bin/$f" "$HOME/.local/bin/$f"
+      cp -p "$dir/local-bin/$f" "$HOME/.local/bin/$f" || warn "runtime restore failed: $f"
     else
       rm -f "$HOME/.local/bin/$f"
     fi
   done
   for f in start_dsh.sh start_sshd.sh; do
-    [ -f "$dir/$f" ] && cp -p "$dir/$f" "$HOME/$f"
+    if [ -f "$dir/$f" ]; then
+      cp -p "$dir/$f" "$HOME/$f" || warn "runtime restore failed: $f"
+    fi
   done
 }
 
@@ -334,14 +351,13 @@ deploy_runtime() {
   cp -R "$PAYLOAD_DIR/rewrites/lib" "$ROOT/tools/lib"
   cp -R "$PAYLOAD_DIR/rewrites/sets" "$ROOT/tools/sets"
   cp "$PAYLOAD_DIR/dist/libdsh-termux-native-link.so" "$ROOT/lib/libdsh-termux-native-link.so"
-  cp "$PAYLOAD_DIR/lib/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
+  rm -f "$ROOT/lib/unset-ld-preload.cjs"
   chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" "$ROOT/bin/npm" \
     "$HOME/.local/bin/pnpm" "$HOME/.local/bin/dsh-install" \
     "$HOME/start_dsh.sh" "$HOME/start_sshd.sh" \
     "$ROOT/tools/apply-rewrites.sh" "$ROOT/tools/verify-install.sh"
   [ -f "$ROOT/tools/smoke-web.sh" ] && chmod 755 "$ROOT/tools/smoke-web.sh"
-  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/libdsh-termux-native-link.so" \
-    "$ROOT/lib/unset-ld-preload.cjs"
+  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/libdsh-termux-native-link.so"
   if [ ! -s "$ROOT/etc/web-token" ]; then
     head -c 9 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n' > "$ROOT/etc/web-token"
   fi
@@ -517,7 +533,8 @@ do_install_or_update() {
 
   backup_home
   local backup_dir
-  backup_dir="$(backup_runtime)"
+  backup_dir="$(backup_runtime)" || die "runtime backup failed"
+  [ -n "$backup_dir" ] || die "runtime backup failed"
   log "runtime backup: $backup_dir"
 
   if [ "$was_running" = 1 ]; then

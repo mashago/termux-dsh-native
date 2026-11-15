@@ -132,18 +132,17 @@ rewrites/
   lib/common.mjs              backups, atomic writes, syntax checks, markers
   sets/<set>/                 manifest.json + index.mjs
 bin/                          dsh wrapper, BROWSER opener, npm/pnpm/dsh-install helpers
-lib/unset-ld-preload.cjs      strips LD_* for dsh child processes
 start_dsh.sh / start_sshd.sh  service management and sshd startup
 verify-install.sh             post-install checks
 smoke-web.sh                  dsh web startup/HTTP smoke test
 ```
 
-Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim + `unset-ld-preload.cjs`), `bin/` (dsh, dsh-open, npm), `tools/` (rewrites), `etc/web-token`, `backups/`, plus `VERSION`, `rewrites-state.json`, `install-state.json`. `~/.local/bin` holds `dsh`, `pnpm`, and `dsh-install`. dsh data lives in `~/.dsh`.
+Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim), `bin/` (dsh, dsh-open, npm), `tools/` (rewrites), `etc/web-token`, `backups/`, plus `rewrites-state.json`, `install-state.json`. `~/.local/bin` holds `dsh`, `pnpm`, and `dsh-install`. dsh data lives in `~/.dsh`.
 
 ## Notes
 
 - Token: `~/.local/opt/dsh/etc/web-token` (mode 600). Replace it and restart `dsh-web` to rotate; cookies last 30 days.
-- Plugin helpers are project-managed: edit `bin/*-wrapper.sh` or `lib/unset-ld-preload.cjs` in the project, not the deployed copies. Install and update overwrite them.
+- Plugin helpers are project-managed: edit `bin/*-wrapper.sh` in the project, not the deployed copies. Install and update overwrite them.
 - Why the plugin helpers exist: Android has no `/usr/bin/env` for Node's npm shebang, and pnpm 9 rejects `add` in dsh's profile workspace; the wrappers run npm through the bundled Node and pin pnpm 11.28.5.
 - Agent bash sessions cannot run `node` by name: the service `PATH` does not include `$DSH_ROOT/node/bin`. Use the absolute path, or add a `node` wrapper and PATH entry if you need it.
 - Back up `~/.dsh` before upgrades, excluding `~/.dsh/cache`.

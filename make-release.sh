@@ -86,14 +86,13 @@ printf '%s\n' $SUPPORTED | grep -qxF "$TESTED" \
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/dsh-release.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 
-mkdir -p "$STAGE/bin" "$STAGE/rewrites" "$STAGE/dist" "$STAGE/lib"
+mkdir -p "$STAGE/bin" "$STAGE/rewrites" "$STAGE/dist"
 cp "$HERE/install-core.sh" "$STAGE/install-core.sh"
 cp "$HERE/bin/dsh-wrapper.sh" "$STAGE/bin/dsh-wrapper.sh"
 cp "$HERE/bin/dsh-open.sh" "$STAGE/bin/dsh-open.sh"
 cp "$HERE/bin/npm-wrapper.sh" "$STAGE/bin/npm-wrapper.sh"
 cp "$HERE/bin/pnpm-wrapper.sh" "$STAGE/bin/pnpm-wrapper.sh"
 cp "$HERE/bin/dsh-install.sh" "$STAGE/bin/dsh-install.sh"
-cp "$HERE/lib/unset-ld-preload.cjs" "$STAGE/lib/unset-ld-preload.cjs"
 cp "$HERE/rewrites/apply-rewrites.sh" "$STAGE/rewrites/apply-rewrites.sh"
 cp "$HERE/rewrites/apply-rewrites.mjs" "$STAGE/rewrites/apply-rewrites.mjs"
 cp -R "$HERE/rewrites/lib" "$STAGE/rewrites/lib"
@@ -115,8 +114,7 @@ chmod 755 "$STAGE/install-core.sh" "$STAGE/start_dsh.sh" "$STAGE/start_sshd.sh" 
   "$STAGE/verify-install.sh" "$STAGE/rewrites/apply-rewrites.sh" \
   "$STAGE/bin/dsh-wrapper.sh" "$STAGE/bin/dsh-open.sh" \
   "$STAGE/bin/npm-wrapper.sh" "$STAGE/bin/pnpm-wrapper.sh" "$STAGE/bin/dsh-install.sh"
-chmod 644 "$STAGE/rewrites/apply-rewrites.mjs" "$STAGE/dist/libdsh-termux-native-link.so" \
-  "$STAGE/lib/unset-ld-preload.cjs"
+chmod 644 "$STAGE/rewrites/apply-rewrites.mjs" "$STAGE/dist/libdsh-termux-native-link.so"
 [ -f "$STAGE/smoke-web.sh" ] && chmod 755 "$STAGE/smoke-web.sh"
 
 mkdir -p "$OUT"
