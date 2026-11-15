@@ -1,0 +1,4 @@
+# Plugin helpers deployed by termux-dsh-native.
+# source|scope|destination
+bin/npm-wrapper.sh|root-bin|npm
+bin/pnpm-wrapper.sh|local-bin|pnpm

@@ -6,6 +6,7 @@ ROOT="${DSH_ROOT:-$HOME/.local/opt/dsh}"
 NODE="$ROOT/node/bin/node"
 DSH="$ROOT/work/node_modules/@deepseek-ai/dsh"
 SHIM="$ROOT/lib/libdsh-termux-native-link.so"
+HELPERS="$ROOT/tools/helpers.list"
 FAIL=0
 
 check() {
@@ -28,9 +29,19 @@ check "sharp prebuild" bash -c 'compgen -G "$1/@img/sharp-linux-arm64/lib/sharp-
 check "link shim" test -r "$SHIM"
 check "wrapper" test -x "$HOME/.local/bin/dsh"
 check "browser opener" test -x "$ROOT/bin/dsh-open"
-check "npm shim" test -x "$ROOT/bin/npm"
-check "pnpm wrapper" test -x "$HOME/.local/bin/pnpm"
-check "dsh-install wrapper" test -x "$HOME/.local/bin/dsh-install"
+if [ -f "$HELPERS" ]; then
+  while IFS='|' read -r src scope dest; do
+    case "$src" in ''|\#*) continue ;; esac
+    case "$scope" in
+      root-bin) check "helper $dest" test -x "$ROOT/bin/$dest" ;;
+      local-bin) check "helper $dest" test -x "$HOME/.local/bin/$dest" ;;
+      *) echo "FAIL helper scope: $scope"; FAIL=$((FAIL + 1)) ;;
+    esac
+  done < "$HELPERS"
+else
+  echo "FAIL helpers.list"
+  FAIL=$((FAIL + 1))
+fi
 
 if [ -x "$NODE" ]; then
   echo "INFO node: $(env -u LD_PRELOAD "$NODE" --version 2>&1)"

@@ -274,6 +274,20 @@ service_start() {
 
 # ── runtime deployment ─────────────────────────────────────────────────────
 
+list_local_helpers() {
+  local list="$ROOT/tools/helpers.list"
+  if [ -f "$list" ]; then
+    while IFS='|' read -r src scope dest; do
+      case "$src" in ''|\#*) continue ;; esac
+      if [ "$scope" = local-bin ]; then
+        printf '%s\n' "$dest"
+      fi
+    done < "$list"
+  else
+    printf '%s\n' pnpm
+  fi
+}
+
 backup_runtime() {
   local stamp dir
   stamp="$(date +%Y%m%d-%H%M%S)"
@@ -291,7 +305,7 @@ backup_runtime() {
     warn "runtime backup: $ROOT/lib is missing"
   fi
   mkdir -p "$dir/local-bin" || die "cannot create runtime backup: local-bin"
-  for f in pnpm dsh-install; do
+  for f in $(list_local_helpers); do
     if [ -f "$HOME/.local/bin/$f" ]; then
       cp -p "$HOME/.local/bin/$f" "$dir/local-bin/$f" || die "runtime backup failed: $f"
     fi
@@ -319,13 +333,14 @@ restore_runtime() {
   fi
   rm -f "$ROOT/lib/unset-ld-preload.cjs"
   mkdir -p "$HOME/.local/bin"
-  for f in pnpm dsh-install; do
+  for f in $(list_local_helpers); do
     if [ -f "$dir/local-bin/$f" ]; then
       cp -p "$dir/local-bin/$f" "$HOME/.local/bin/$f" || warn "runtime restore failed: $f"
     else
       rm -f "$HOME/.local/bin/$f"
     fi
   done
+  rm -f "$HOME/.local/bin/dsh-install"
   for f in start_dsh.sh start_sshd.sh; do
     if [ -f "$dir/$f" ]; then
       cp -p "$dir/$f" "$HOME/$f" || warn "runtime restore failed: $f"
@@ -333,18 +348,30 @@ restore_runtime() {
   done
 }
 
-deploy_runtime() {
+deploy_runtime() (
+  set -e
   mkdir -p "$ROOT"/{bin,lib,tools,etc} "$HOME/.local/bin"
   chmod 700 "$ROOT/etc"
   cp "$PAYLOAD_DIR/bin/dsh-wrapper.sh" "$ROOT/bin/dsh"
   cp "$PAYLOAD_DIR/bin/dsh-open.sh" "$ROOT/bin/dsh-open"
-  cp "$PAYLOAD_DIR/bin/npm-wrapper.sh" "$ROOT/bin/npm"
-  cp "$PAYLOAD_DIR/bin/pnpm-wrapper.sh" "$HOME/.local/bin/pnpm"
-  cp "$PAYLOAD_DIR/bin/dsh-install.sh" "$HOME/.local/bin/dsh-install"
+  cp "$PAYLOAD_DIR/helpers.list" "$ROOT/tools/helpers.list"
+  while IFS='|' read -r src scope dest; do
+    case "$src" in ''|\#*) continue ;; esac
+    case "$scope" in
+      root-bin) target="$ROOT/bin/$dest" ;;
+      local-bin) target="$HOME/.local/bin/$dest" ;;
+      *) echo "!! helpers.list: unknown scope $scope for $src" >&2; exit 1 ;;
+    esac
+    cp "$PAYLOAD_DIR/$src" "$target"
+    chmod 755 "$target"
+  done < "$PAYLOAD_DIR/helpers.list"
+  rm -f "$HOME/.local/bin/dsh-install"
   cp "$PAYLOAD_DIR/start_dsh.sh" "$HOME/start_dsh.sh"
   cp "$PAYLOAD_DIR/start_sshd.sh" "$HOME/start_sshd.sh"
   cp "$PAYLOAD_DIR/verify-install.sh" "$ROOT/tools/verify-install.sh"
-  [ -f "$PAYLOAD_DIR/smoke-web.sh" ] && cp "$PAYLOAD_DIR/smoke-web.sh" "$ROOT/tools/smoke-web.sh"
+  if [ -f "$PAYLOAD_DIR/smoke-web.sh" ]; then
+    cp "$PAYLOAD_DIR/smoke-web.sh" "$ROOT/tools/smoke-web.sh"
+  fi
   cp "$PAYLOAD_DIR/rewrites/apply-rewrites.sh" "$ROOT/tools/apply-rewrites.sh"
   cp "$PAYLOAD_DIR/rewrites/apply-rewrites.mjs" "$ROOT/tools/apply-rewrites.mjs"
   rm -rf "$ROOT/tools/lib" "$ROOT/tools/sets"
@@ -352,12 +379,14 @@ deploy_runtime() {
   cp -R "$PAYLOAD_DIR/rewrites/sets" "$ROOT/tools/sets"
   cp "$PAYLOAD_DIR/dist/libdsh-termux-native-link.so" "$ROOT/lib/libdsh-termux-native-link.so"
   rm -f "$ROOT/lib/unset-ld-preload.cjs"
-  chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" "$ROOT/bin/npm" \
-    "$HOME/.local/bin/pnpm" "$HOME/.local/bin/dsh-install" \
+  chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" \
     "$HOME/start_dsh.sh" "$HOME/start_sshd.sh" \
     "$ROOT/tools/apply-rewrites.sh" "$ROOT/tools/verify-install.sh"
-  [ -f "$ROOT/tools/smoke-web.sh" ] && chmod 755 "$ROOT/tools/smoke-web.sh"
-  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/libdsh-termux-native-link.so"
+  if [ -f "$ROOT/tools/smoke-web.sh" ]; then
+    chmod 755 "$ROOT/tools/smoke-web.sh"
+  fi
+  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/tools/helpers.list" \
+    "$ROOT/lib/libdsh-termux-native-link.so"
   if [ ! -s "$ROOT/etc/web-token" ]; then
     head -c 9 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n' > "$ROOT/etc/web-token"
   fi
@@ -367,7 +396,7 @@ deploy_runtime() {
     grep -q '# dsh-termux-native' "$HOME/.bashrc" 2>/dev/null \
       || printf '\nexport PATH="$HOME/.local/bin:$PATH"   # dsh-termux-native\n' >> "$HOME/.bashrc"
   fi
-}
+)
 
 probe_shim() {
   step "Probe link shim"
@@ -455,7 +484,7 @@ print_check() {
   else
     log "link shim:      missing"
   fi
-  if [ -x "$ROOT/bin/npm" ] && [ -x "$HOME/.local/bin/pnpm" ] && [ -x "$HOME/.local/bin/dsh-install" ]; then
+  if [ -x "$ROOT/bin/npm" ] && [ -x "$HOME/.local/bin/pnpm" ]; then
     log "plugin helpers: present"
   else
     log "plugin helpers: missing"
@@ -476,6 +505,7 @@ do_uninstall() {
   service_stop
   rm -rf "$PREFIX/var/service/dsh-web" "$PREFIX/var/log/sv/dsh-web"
   rm -f "$HOME/.local/bin/dsh"
+  # dsh-install is removed from current releases; keep cleaning it for old installs.
   for f in pnpm dsh-install; do
     if grep -q 'termux-dsh-native' "$HOME/.local/bin/$f" 2>/dev/null; then
       rm -f "$HOME/.local/bin/$f"
@@ -557,7 +587,15 @@ do_install_or_update() {
   fi
 
   step "Deploy runtime files"
-  deploy_runtime
+  if ! deploy_runtime; then
+    warn "deploy step failed; rolling back"
+    restore_runtime "$backup_dir"
+    if [ -n "$previous_version" ] && [ "$previous_version" != "$TARGET" ]; then
+      npm_install_dsh "$previous_version" || warn "rollback install failed"
+    fi
+    [ "$was_running" = 1 ] && service_start
+    die "deploy failed; previous runtime restored"
+  fi
 
   if ! probe_shim; then
     restore_runtime "$backup_dir"
