@@ -88,12 +88,17 @@ service_running() {
   "$SV" status "$SERVICE" 2>/dev/null | grep -q "^run: $SERVICE:"
 }
 
+service_paused() {
+  "$SV" status "$SERVICE" 2>/dev/null | grep -q "^run: $SERVICE:.*paused"
+}
+
 service_enabled() {
   [ -d "$SVC" ] && [ ! -e "$SVC/down" ]
 }
 
 http_code() {
-  curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/" 2>/dev/null || true
+  curl -s -o /dev/null -w '%{http_code}' --max-time 3 --connect-timeout 2 \
+    "http://127.0.0.1:$PORT/" 2>/dev/null || true
 }
 
 print_url() {
@@ -137,11 +142,32 @@ start() {
   stop_legacy_manual
   ensure_service
 
-  if service_running; then
+  local resumed=0
+  if service_paused; then
+    echo "dsh web is paused; resuming ..."
+    "$SV" cont "$SERVICE" >/dev/null 2>&1 || true
+    local i
+    for i in $(seq 1 25); do
+      service_paused || break
+      sleep 0.2
+    done
+    resumed=1
+  fi
+
+  if service_running && ! service_paused; then
     "$SV_ENABLE" "$SERVICE" >/dev/null 2>&1 || true
-    echo "dsh web already running (service $SERVICE; auto-start enabled)"
+    if [ "$resumed" = 1 ]; then
+      echo "dsh web resumed (service $SERVICE; auto-start enabled)"
+    else
+      echo "dsh web already running (service $SERVICE; auto-start enabled)"
+    fi
     print_url
     return 0
+  fi
+
+  if service_paused; then
+    echo "!! dsh web is still paused; try '$SV cont $SERVICE'" >&2
+    return 1
   fi
 
   if ! ensure_daemon; then
@@ -185,6 +211,9 @@ start() {
 
 stop() {
   if [ -d "$SVC" ]; then
+    if service_paused; then
+      "$SV" cont "$SERVICE" >/dev/null 2>&1 || true
+    fi
     if service_running; then
       echo "stopping $SERVICE ..."
     fi
@@ -210,7 +239,11 @@ status() {
   if [ -d "$SVC" ]; then
     local enabled=disabled
     [ ! -e "$SVC/down" ] && enabled=enabled
-    if service_running; then
+    if service_paused; then
+      echo "dsh web: service=$SERVICE paused auto_start=$enabled"
+      print_url
+      echo "resume with: $0 start   (or: $SV cont $SERVICE)"
+    elif service_running; then
       echo "dsh web: service=$SERVICE running http=$(http_code) auto_start=$enabled"
       print_url
     else
@@ -229,6 +262,9 @@ status() {
 
 restart() {
   ensure_service
+  if service_paused; then
+    "$SV" cont "$SERVICE" >/dev/null 2>&1 || true
+  fi
   if ! service_running; then
     start
     return

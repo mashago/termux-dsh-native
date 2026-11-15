@@ -75,6 +75,8 @@ Open the printed URL after install (or use `~/start_dsh.sh status` later). The f
 
 `dsh-web` is managed by termux-services. It does not return after a phone reboot unless Termux:Boot is installed; opening a Termux login shell starts it.
 
+If `~/start_dsh.sh status` reports `paused`, `~/start_dsh.sh start` resumes the service; repeated pauses usually mean Android's battery management is freezing Termux.
+
 ## Upgrade and rollback
 
 ### From a GitHub release
