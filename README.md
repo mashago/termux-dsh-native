@@ -101,6 +101,8 @@ The installer deploys three helpers so the web UI and `dsh plugin` can install p
 - `$DSH_ROOT/bin/npm` is a shim for Node's bundled npm, which Android cannot execute directly.
 - `~/.local/bin/dsh-install` runs the dsh CLI under the bundled Node for one-shot plugin work.
 
+The installer adds `~/.local/bin` to `~/.bashrc`, and the `dsh-web` service script puts it on `PATH`. A non-interactive shell does not read `.bashrc`; use `PATH="$HOME/.local/bin:$PATH" dsh plugin ...` or `dsh-install` there.
+
 If Corepack must download pnpm, it uses npm's default registry; set `COREPACK_NPM_REGISTRY=https://registry.npmmirror.com` for the mainland mirror.
 
 A profile whose `node_modules` was created by pnpm 9 must be rebuilt once before pnpm 11 can manage it (`ERR_PNPM_PUBLIC_HOIST_PATTERN_DIFF`):
@@ -143,6 +145,7 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim +
 - Token: `~/.local/opt/dsh/etc/web-token` (mode 600). Replace it and restart `dsh-web` to rotate; cookies last 30 days.
 - Plugin helpers are project-managed: edit `bin/*-wrapper.sh` or `lib/unset-ld-preload.cjs` in the project, not the deployed copies. Install and update overwrite them.
 - Why the plugin helpers exist: Android has no `/usr/bin/env` for Node's npm shebang, and pnpm 9 rejects `add` in dsh's profile workspace; the wrappers run npm through the bundled Node and pin pnpm 11.28.5.
+- Agent bash sessions cannot run `node` by name: the service `PATH` does not include `$DSH_ROOT/node/bin`. Use the absolute path, or add a `node` wrapper and PATH entry if you need it.
 - Back up `~/.dsh` before upgrades, excluding `~/.dsh/cache`.
 - Never run `npm install` without `--ignore-scripts`; koffi tries to compile.
 - `update.sh --backup-home` tars `~/.dsh` (minus cache) first.
