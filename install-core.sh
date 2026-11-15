@@ -93,7 +93,7 @@ derive_supported() {
     [ -f "$manifest" ] || continue
     sed -n 's/.*"versions"[[:space:]]*:[[:space:]]*\[\([^]]*\)\].*/\1/p' "$manifest" \
       | tr -d ' "' | tr ',' '\n'
-  done | awk 'NF' | sort -u
+  done | awk 'NF' | sort -uV
 }
 
 default_set_version() {
@@ -315,6 +315,10 @@ backup_runtime() {
       cp -p "$HOME/$f" "$dir/$f" || die "runtime backup failed: $f"
     fi
   done
+  local old
+  for old in $(ls -1dt "$ROOT/backups/runtime/"*/ 2>/dev/null | tail -n +6); do
+    rm -rf "$old" || warn "cannot prune runtime backup: $old"
+  done
   printf '%s' "$dir"
 }
 
@@ -413,6 +417,20 @@ apply_rewrites() {
 verify_install() {
   step "Verify installation"
   bash "$ROOT/tools/verify-install.sh" || return 1
+}
+
+warm_plugin_helpers() {
+  local bin="$HOME/.local/bin/pnpm"
+  if [ ! -x "$bin" ]; then
+    warn "pnpm wrapper missing; plugin installs will fail"
+    return 0
+  fi
+  step "Warm plugin helpers"
+  if timeout 90 "$bin" --version >/dev/null 2>&1; then
+    log "pnpm helper ready"
+  else
+    warn "pnpm helper not ready; the first plugin install may need network"
+  fi
 }
 
 rewrite_set_label() {
@@ -641,6 +659,8 @@ do_install_or_update() {
     step "Start dsh-web"
     service_start
   fi
+
+  warm_plugin_helpers
 
   log ""
   log "dsh:     ${previous_version:-none} -> $TARGET"

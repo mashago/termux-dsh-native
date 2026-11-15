@@ -57,9 +57,23 @@ for (const name of fs.readdirSync(setsDir)) {
   if (!Array.isArray(manifest.versions) || manifest.versions.length === 0) {
     throw new Error(`set ${name}: manifest.versions must be a non-empty array`)
   }
+  if (!manifest.versions.every(version => typeof version === 'string' && version !== '')) {
+    throw new Error(`set ${name}: manifest.versions entries must be non-empty strings`)
+  }
   sets.set(name, manifest)
 }
 if (sets.size === 0) throw new Error('no rewrite sets found')
+const owners = new Map()
+let defaults = 0
+for (const [name, manifest] of sets) {
+  if (manifest.default === true) defaults += 1
+  for (const version of manifest.versions) {
+    const owner = owners.get(version)
+    if (owner !== undefined) throw new Error(`version ${version} is declared by both ${owner} and ${name}`)
+    owners.set(version, name)
+  }
+}
+if (defaults > 1) throw new Error(`multiple default sets: ${defaults}`)
 for (const [name, manifest] of sets) {
   let current = name
   const seen = new Set([name])
@@ -74,7 +88,7 @@ for (const [name, manifest] of sets) {
     throw new Error(`set ${name}: resolved set ${current} has no index.mjs`)
   }
 }
-const versions = [...new Set([...sets.values()].flatMap(manifest => manifest.versions))].sort()
+const versions = [...owners.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 console.log(versions.join(' '))
 NODE
 }

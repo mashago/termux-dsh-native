@@ -48,6 +48,10 @@ while [ $# -gt 0 ]; do
 done
 
 SELF="${BASH_SOURCE[0]:-}"
+case "$SELF" in
+  */*) ;;
+  *) SELF="" ;;
+esac
 if [ -n "$SELF" ] && [ -f "$(dirname "$SELF")/install-core.sh" ]; then
   DIR="$(cd "$(dirname "$SELF")" && pwd)"
   log "using local checkout: $DIR"

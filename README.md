@@ -44,9 +44,12 @@ The installer only checks these packages. If something is missing it stops and p
 ### From a GitHub release
 
 ```sh
+tmp="${TMPDIR:-$PREFIX/tmp}/termux-dsh-install.sh"
 curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download/install.sh \
-  | bash -s -- -y
+  -o "$tmp" && bash "$tmp" -y
 ```
+
+The download-then-run form preserves a failed download. `curl ... | bash` can still exit 0 when curl fails, because bash receives an empty script.
 
 ### From a git clone
 
@@ -76,8 +79,9 @@ Open the printed URL after install (or use `~/start_dsh.sh status` later). The f
 ### From a GitHub release
 
 ```sh
+tmp="${TMPDIR:-$PREFIX/tmp}/termux-dsh-update.sh"
 curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download/update.sh \
-  | bash -s -- 0.2.2-rc.2 -y
+  -o "$tmp" && bash "$tmp" -y
 ```
 
 ### From a git clone
