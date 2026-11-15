@@ -2,7 +2,7 @@
 
 Run DeepSeek Harness (`dsh`) natively in Termux with minimal patches: no proot, no Linux subsystem, no custom Node build, no libc replacement.
 
-Two small versioned patches and one `LD_PRELOAD` shim are all it takes.
+Two small versioned patches, one `LD_PRELOAD` shim, and a few Node/pnpm deployment helpers are all it takes.
 
 Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
 
@@ -91,6 +91,32 @@ bash update.sh --rollback -y    # restore the previous version from install-stat
 
 The updater validates the target against the packaged rewrite sets before stopping anything, backs up runtime files, upgrades Node when required, reinstalls dsh, reapplies rewrites, verifies, and restores the previous service state. Failures roll back.
 
+Existing profiles whose `node_modules` was created by pnpm 9 need the one-time rebuild described in [Plugin management](#plugin-management).
+
+## Plugin management
+
+The installer deploys three helpers so the web UI and `dsh plugin` can install plugins through pnpm:
+
+- `~/.local/bin/pnpm` runs **pnpm 11.28.5** (the version dsh 0.2.2-rc.3 expects) through Corepack; override the pin with `DSH_PNPM_VERSION`.
+- `$DSH_ROOT/bin/npm` is a shim for Node's bundled npm, which Android cannot execute directly.
+- `~/.local/bin/dsh-install` runs the dsh CLI under the bundled Node for one-shot plugin work.
+
+If Corepack must download pnpm, it uses npm's default registry; set `COREPACK_NPM_REGISTRY=https://registry.npmmirror.com` for the mainland mirror.
+
+A profile whose `node_modules` was created by pnpm 9 must be rebuilt once before pnpm 11 can manage it (`ERR_PNPM_PUBLIC_HOIST_PATTERN_DIFF`):
+
+```sh
+P="$HOME/.dsh/profiles/web"
+SVDIR="$PREFIX/var/service" sv down dsh-web
+cp -p "$P/package.json" "$P/package.json.bak-pnpm11"
+cp -p "$P/pnpm-lock.yaml" "$P/pnpm-lock.yaml.bak-pnpm11"
+mv "$P/node_modules" "$P/node_modules.bak-pnpm9"
+( cd "$P" && pnpm install )
+SVDIR="$PREFIX/var/service" sv up dsh-web
+```
+
+After that, install and update plugins from the web UI or with `dsh plugin`. Verified with `dsh-plugin-release-probe@0.0.8` through `registry.npmmirror.com`.
+
 ## Layout
 
 ```
@@ -103,17 +129,20 @@ rewrites/
   apply-rewrites.{sh,mjs}     version -> rewrite set dispatcher
   lib/common.mjs              backups, atomic writes, syntax checks, markers
   sets/<set>/                 manifest.json + index.mjs
-bin/                          wrapper and BROWSER opener
+bin/                          dsh wrapper, BROWSER opener, npm/pnpm/dsh-install helpers
+lib/unset-ld-preload.cjs      strips LD_* for dsh child processes
 start_dsh.sh / start_sshd.sh  service management and sshd startup
 verify-install.sh             post-install checks
 smoke-web.sh                  dsh web startup/HTTP smoke test
 ```
 
-Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (shim), `bin/`, `tools/` (rewrites), `etc/web-token`, `backups/`, plus `VERSION`, `rewrites-state.json`, `install-state.json`. dsh data lives in `~/.dsh`.
+Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim + `unset-ld-preload.cjs`), `bin/` (dsh, dsh-open, npm), `tools/` (rewrites), `etc/web-token`, `backups/`, plus `VERSION`, `rewrites-state.json`, `install-state.json`. `~/.local/bin` holds `dsh`, `pnpm`, and `dsh-install`. dsh data lives in `~/.dsh`.
 
 ## Notes
 
 - Token: `~/.local/opt/dsh/etc/web-token` (mode 600). Replace it and restart `dsh-web` to rotate; cookies last 30 days.
+- Plugin helpers are project-managed: edit `bin/*-wrapper.sh` or `lib/unset-ld-preload.cjs` in the project, not the deployed copies. Install and update overwrite them.
+- Why the plugin helpers exist: Android has no `/usr/bin/env` for Node's npm shebang, and pnpm 9 rejects `add` in dsh's profile workspace; the wrappers run npm through the bundled Node and pin pnpm 11.28.5.
 - Back up `~/.dsh` before upgrades, excluding `~/.dsh/cache`.
 - Never run `npm install` without `--ignore-scripts`; koffi tries to compile.
 - `update.sh --backup-home` tars `~/.dsh` (minus cache) first.

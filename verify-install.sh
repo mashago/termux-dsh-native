@@ -28,10 +28,18 @@ check "sharp prebuild" test -f "$ROOT/work/node_modules/@img/sharp-linux-arm64/l
 check "link shim" test -r "$SHIM"
 check "wrapper" test -x "$HOME/.local/bin/dsh"
 check "browser opener" test -x "$ROOT/bin/dsh-open"
+check "npm shim" test -x "$ROOT/bin/npm"
+check "pnpm wrapper" test -x "$HOME/.local/bin/pnpm"
+check "dsh-install wrapper" test -x "$HOME/.local/bin/dsh-install"
+check "unset-ld-preload preload" test -f "$ROOT/lib/unset-ld-preload.cjs"
 
 if [ -x "$NODE" ]; then
   echo "INFO node: $(env -u LD_PRELOAD "$NODE" --version 2>&1)"
   echo "INFO glibc: $(env -u LD_PRELOAD "$NODE" -e 'console.log(process.report.getReport().header.glibcVersionRuntime)' 2>&1)"
+fi
+
+if [ -x "$ROOT/bin/npm" ]; then
+  check "npm shim --version" env -u LD_PRELOAD "$ROOT/bin/npm" --version
 fi
 
 if [ -f "$DSH/package.json" ]; then

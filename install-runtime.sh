@@ -13,7 +13,7 @@ BIN="$HOME/.local/bin"
   exit 1
 }
 
-mkdir -p "$ROOT/bin" "$ROOT/tools" "$ROOT/etc" "$BIN"
+mkdir -p "$ROOT/bin" "$ROOT/lib" "$ROOT/tools" "$ROOT/etc" "$BIN"
 chmod 700 "$ROOT/etc"
 
 # Optional fixed web launch token.  Default: 12 random base64url characters.
@@ -27,6 +27,10 @@ chmod 600 "$ROOT/etc/web-token"
 
 cp "$HERE/bin/dsh-wrapper.sh" "$ROOT/bin/dsh"
 cp "$HERE/bin/dsh-open.sh" "$ROOT/bin/dsh-open"
+cp "$HERE/bin/npm-wrapper.sh" "$ROOT/bin/npm"
+cp "$HERE/bin/pnpm-wrapper.sh" "$BIN/pnpm"
+cp "$HERE/bin/dsh-install.sh" "$BIN/dsh-install"
+cp "$HERE/lib/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
 cp "$HERE/rewrites/apply-rewrites.sh" "$ROOT/tools/apply-rewrites.sh"
 cp "$HERE/rewrites/apply-rewrites.mjs" "$ROOT/tools/apply-rewrites.mjs"
 rm -rf "$ROOT/tools/lib" "$ROOT/tools/sets"
@@ -35,10 +39,11 @@ cp -R "$HERE/rewrites/sets" "$ROOT/tools/sets"
 cp "$HERE/verify-install.sh" "$ROOT/tools/verify-install.sh"
 cp "$HERE/start_dsh.sh" "$HOME/start_dsh.sh"
 cp "$HERE/start_sshd.sh" "$HOME/start_sshd.sh"
-chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" \
+chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" "$ROOT/bin/npm" \
+  "$BIN/pnpm" "$BIN/dsh-install" \
   "$ROOT/tools/apply-rewrites.sh" "$ROOT/tools/verify-install.sh" \
   "$HOME/start_dsh.sh" "$HOME/start_sshd.sh"
-chmod 644 "$ROOT/tools/apply-rewrites.mjs"
+chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/unset-ld-preload.cjs"
 
 ln -sfn "$ROOT/bin/dsh" "$BIN/dsh"
 

@@ -281,6 +281,11 @@ backup_runtime() {
   mkdir -p "$dir"
   [ -d "$ROOT/tools" ] && cp -R "$ROOT/tools" "$dir/tools"
   [ -d "$ROOT/bin" ] && cp -R "$ROOT/bin" "$dir/bin"
+  mkdir -p "$dir/local-bin"
+  for f in pnpm dsh-install; do
+    [ -f "$HOME/.local/bin/$f" ] && cp -p "$HOME/.local/bin/$f" "$dir/local-bin/$f"
+  done
+  [ -f "$ROOT/lib/unset-ld-preload.cjs" ] && cp -p "$ROOT/lib/unset-ld-preload.cjs" "$dir/unset-ld-preload.cjs"
   for f in start_dsh.sh start_sshd.sh; do
     [ -f "$HOME/$f" ] && cp -p "$HOME/$f" "$dir/$f"
   done
@@ -293,6 +298,19 @@ restore_runtime() {
   rm -rf "$ROOT/tools" "$ROOT/bin"
   cp -R "$dir/tools" "$ROOT/tools"
   cp -R "$dir/bin" "$ROOT/bin"
+  mkdir -p "$ROOT/lib" "$HOME/.local/bin"
+  if [ -f "$dir/unset-ld-preload.cjs" ]; then
+    cp -p "$dir/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
+  else
+    rm -f "$ROOT/lib/unset-ld-preload.cjs"
+  fi
+  for f in pnpm dsh-install; do
+    if [ -f "$dir/local-bin/$f" ]; then
+      cp -p "$dir/local-bin/$f" "$HOME/.local/bin/$f"
+    else
+      rm -f "$HOME/.local/bin/$f"
+    fi
+  done
   for f in start_dsh.sh start_sshd.sh; do
     [ -f "$dir/$f" ] && cp -p "$dir/$f" "$HOME/$f"
   done
@@ -303,6 +321,9 @@ deploy_runtime() {
   chmod 700 "$ROOT/etc"
   cp "$PAYLOAD_DIR/bin/dsh-wrapper.sh" "$ROOT/bin/dsh"
   cp "$PAYLOAD_DIR/bin/dsh-open.sh" "$ROOT/bin/dsh-open"
+  cp "$PAYLOAD_DIR/bin/npm-wrapper.sh" "$ROOT/bin/npm"
+  cp "$PAYLOAD_DIR/bin/pnpm-wrapper.sh" "$HOME/.local/bin/pnpm"
+  cp "$PAYLOAD_DIR/bin/dsh-install.sh" "$HOME/.local/bin/dsh-install"
   cp "$PAYLOAD_DIR/start_dsh.sh" "$HOME/start_dsh.sh"
   cp "$PAYLOAD_DIR/start_sshd.sh" "$HOME/start_sshd.sh"
   cp "$PAYLOAD_DIR/verify-install.sh" "$ROOT/tools/verify-install.sh"
@@ -313,11 +334,14 @@ deploy_runtime() {
   cp -R "$PAYLOAD_DIR/rewrites/lib" "$ROOT/tools/lib"
   cp -R "$PAYLOAD_DIR/rewrites/sets" "$ROOT/tools/sets"
   cp "$PAYLOAD_DIR/dist/libdsh-termux-native-link.so" "$ROOT/lib/libdsh-termux-native-link.so"
-  chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" \
+  cp "$PAYLOAD_DIR/lib/unset-ld-preload.cjs" "$ROOT/lib/unset-ld-preload.cjs"
+  chmod 755 "$ROOT/bin/dsh" "$ROOT/bin/dsh-open" "$ROOT/bin/npm" \
+    "$HOME/.local/bin/pnpm" "$HOME/.local/bin/dsh-install" \
     "$HOME/start_dsh.sh" "$HOME/start_sshd.sh" \
     "$ROOT/tools/apply-rewrites.sh" "$ROOT/tools/verify-install.sh"
   [ -f "$ROOT/tools/smoke-web.sh" ] && chmod 755 "$ROOT/tools/smoke-web.sh"
-  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/libdsh-termux-native-link.so"
+  chmod 644 "$ROOT/tools/apply-rewrites.mjs" "$ROOT/lib/libdsh-termux-native-link.so" \
+    "$ROOT/lib/unset-ld-preload.cjs"
   if [ ! -s "$ROOT/etc/web-token" ]; then
     head -c 9 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n' > "$ROOT/etc/web-token"
   fi
@@ -415,6 +439,11 @@ print_check() {
   else
     log "link shim:      missing"
   fi
+  if [ -x "$ROOT/bin/npm" ] && [ -x "$HOME/.local/bin/pnpm" ] && [ -x "$HOME/.local/bin/dsh-install" ]; then
+    log "plugin helpers: present"
+  else
+    log "plugin helpers: missing"
+  fi
   if service_running; then
     log "service:        running"
   else
@@ -431,6 +460,11 @@ do_uninstall() {
   service_stop
   rm -rf "$PREFIX/var/service/dsh-web" "$PREFIX/var/log/sv/dsh-web"
   rm -f "$HOME/.local/bin/dsh"
+  for f in pnpm dsh-install; do
+    if grep -q 'termux-dsh-native' "$HOME/.local/bin/$f" 2>/dev/null; then
+      rm -f "$HOME/.local/bin/$f"
+    fi
+  done
   rm -f "$HOME/start_dsh.sh" "$HOME/start_sshd.sh"
   step "Remove runtime root $ROOT"
   rm -rf "$ROOT"
