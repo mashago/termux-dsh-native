@@ -1,0 +1,6 @@
+{
+  "versions": ["0.2.2-rc.5"],
+  "extends": "0.2.2-rc.2",
+  "default": true,
+  "notes": "Anchors and rewritten functions verified identical to 0.2.2-rc.3 (2026-11-18); extends 0.2.2-rc.2 directly because rc.3 is alias-only. Full lib/index.js of dsh-client-connection and dsh-attachment-local unchanged from rc.3."
+}

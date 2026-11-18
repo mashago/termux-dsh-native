@@ -4,7 +4,7 @@ Run DeepSeek Harness (`dsh`) natively in Termux with minimal patches: no proot, 
 
 Two small versioned patches, one `LD_PRELOAD` shim, and a few Node/pnpm deployment helpers are all it takes.
 
-Verified with `@deepseek-ai/dsh@0.2.2-rc.3` on Android 16 / aarch64.
+Verified with `@deepseek-ai/dsh@0.2.2-rc.5` on Android 16 / aarch64.
 
 <img src="screenshots/dsh-web-termux.jpg" alt="dsh web running in Termux on an Android phone" width="400">
 
@@ -66,20 +66,24 @@ bash install.sh -y
 
 Both routes run the same installer: verify prerequisites, install or pin Node and dsh, deploy the runtime, apply the matching rewrites, verify, and start `dsh-web`. Flags: `--dsh-version <v>`, `--release <tag>`, `--repo <owner/repo>`, `--root <path>`, `--no-start`, `--check`, `--uninstall`.
 
-Open the printed URL after install (or use `~/start_dsh.sh status` later). The first visit trades the token for a 30-day cookie; afterwards `http://127.0.0.1:3080/` works directly.
+Open the printed URL after install (or use the service commands below). The first visit trades the token for a 30-day cookie; afterwards `http://127.0.0.1:3080/` works directly.
 
 ## Running the service
 
 ```sh
-~/start_dsh.sh status     # service state, HTTP port, auto-start, URL
-~/start_dsh.sh start      # start and enable auto-start on Termux login
-~/start_dsh.sh stop       # stop and disable auto-start
-~/start_dsh.sh restart
+./start_dsh.sh status     # service state, HTTP port, auto-start, URL
+./start_dsh.sh start      # start and enable auto-start on Termux login
+./start_dsh.sh stop       # stop and disable auto-start
+./start_dsh.sh restart
 ```
+
+`./start_dsh.sh` is the file in this clone; the installer also drops a copy at `~/start_dsh.sh`
+for release installs without a clone. Both resolve every path from `$HOME`/`$PREFIX`, so
+either form works from any directory.
 
 `dsh-web` is managed by termux-services. It does not return after a phone reboot unless Termux:Boot is installed; opening a Termux login shell starts it.
 
-If `~/start_dsh.sh status` reports `paused`, `~/start_dsh.sh start` resumes the service; repeated pauses usually mean Android's battery management is freezing Termux.
+If `./start_dsh.sh status` reports `paused`, `./start_dsh.sh start` resumes the service; repeated pauses usually mean Android's battery management is freezing Termux.
 
 ## Upgrade and rollback
 
@@ -95,7 +99,7 @@ curl -fsSL https://github.com/mashago/termux-dsh-native/releases/latest/download
 
 ```sh
 git pull
-bash update.sh 0.2.2-rc.3 -y    # pin a version; omit it to use the release's tested version
+bash update.sh 0.2.2-rc.5 -y    # pin a version; omit it to use the release's tested version
 bash update.sh --check          # installed vs. supported versions
 bash update.sh --rollback -y    # restore the previous version from install-state.json
 ```
@@ -110,7 +114,7 @@ Existing profiles whose `node_modules` was created by pnpm 9 need the one-time r
 
 The installer deploys two helpers so the web UI and `dsh plugin` can install plugins through pnpm:
 
-- `~/.local/bin/pnpm` runs **pnpm 11.28.5** (the version dsh 0.2.2-rc.3 expects) through Corepack; override the pin with `DSH_PNPM_VERSION`.
+- `~/.local/bin/pnpm` runs **pnpm 11.28.5** (the version dsh 0.2.2-rc.5 expects) through Corepack; override the pin with `DSH_PNPM_VERSION`.
 - `$DSH_ROOT/bin/npm` is a shim for Node's bundled npm, which Android cannot execute directly.
 
 The npm shim covers Android's missing `/usr/bin/env` for Node's npm shebang; the pnpm pin is required because pnpm 9 rejects `pnpm add` in dsh's profile workspace.
@@ -166,7 +170,7 @@ Runtime (`~/.local/opt/dsh`): `node/`, `work/` (npm prefix), `lib/` (link shim),
 
 - Shim: `cd shim && make fetch-sysroot && make && make device-link`, then copy the `.so` into `dist/`.
 - New dsh version: see `rewrites/README.md`; a compatible version needs only `{"versions":["<v>"],"extends":"<existing-set>"}`.
-- Release: `./make-release.sh --project v0.3.0 --tested-dsh 0.2.2-rc.3`, then attach `release/*` to a GitHub release.
+- Release: `./make-release.sh --project v0.3.0 --tested-dsh 0.2.2-rc.5`, then attach `release/*` to a GitHub release.
 - In the wrapper, bionic commands must run before `LD_PRELOAD` is set.
 
 ## Uninstall
@@ -178,15 +182,15 @@ bash install.sh --uninstall --purge-home  # also deletes sessions and credential
 
 ## Troubleshooting: paused service
 
-If the web UI stops responding and `~/start_dsh.sh status` reports `paused`, the dsh process was stopped by `SIGSTOP`; runit marks it paused. This is not a crash. Android/OEM battery management can freeze background processes.
+If the web UI stops responding and `./start_dsh.sh status` reports `paused`, the dsh process was stopped by `SIGSTOP`; runit marks it paused. This is not a crash. Android/OEM battery management can freeze background processes.
 
 ```sh
-~/start_dsh.sh start        # detects paused and runs sv cont
-~/start_dsh.sh restart      # also handles a paused service
+./start_dsh.sh start        # detects paused and runs sv cont
+./start_dsh.sh restart      # also handles a paused service
 SVDIR=$PREFIX/var/service sv cont dsh-web   # direct resume
 ```
 
-After resuming, refresh the web UI. A bare `http://127.0.0.1:3080/` returns 401 until the browser has the token cookie; use the token URL printed by `~/start_dsh.sh status`.
+After resuming, refresh the web UI. A bare `http://127.0.0.1:3080/` returns 401 until the browser has the token cookie; use the token URL printed by `./start_dsh.sh status`.
 
 To reduce recurrence, set Termux to unrestricted battery/background use in Android settings, disable any OEM "background freeze" for Termux, acquire a Termux wake lock (`termux-wake-lock`), and exclude Termux from battery-saver app management.
 
