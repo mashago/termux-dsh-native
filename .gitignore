@@ -2,7 +2,7 @@
 release/
 
 # Local build outputs
-shim/.build-sysroot/
+.build-sysroot/
 shim/*.o
 shim/libdsh-termux-native-link.so
 
