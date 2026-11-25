@@ -29,6 +29,20 @@ warn() { printf '!! %s\n' "$*" >&2; }
 step() { printf '\n== %s\n' "$*"; }
 die() { printf '!! %s\n' "$*" >&2; exit 1; }
 
+# Resolve a patchelf binary. Termux's bionic patchelf is preferred (small and
+# independent of the glibc packages); the copy shipped by patchelf-glibc stays
+# as a fallback so an already-provisioned machine keeps working.
+resolve_patchelf() {
+  local candidate
+  for candidate in "${PATCHELF:-}" "$PREFIX/bin/patchelf" "$PREFIX/glibc/bin/patchelf"; do
+    [ -n "$candidate" ] || continue
+    if [ -x "$candidate" ]; then printf '%s' "$candidate"; return 0; fi
+  done
+  return 1
+}
+
+PATCHELF="$(resolve_patchelf || true)"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -166,7 +180,7 @@ check_termux() {
 
 ensure_packages() {
   local missing=() pkg_name command_name
-  for pkg_name in glibc-repo glibc glibc-runner termux-services coreutils; do
+  for pkg_name in glibc-repo glibc gcc-libs-glibc termux-services coreutils; do
     dpkg -s "$pkg_name" >/dev/null 2>&1 || missing+=("$pkg_name")
   done
   if [ ${#missing[@]} -gt 0 ]; then
@@ -177,6 +191,8 @@ ensure_packages() {
     command -v "$command_name" >/dev/null 2>&1 \
       || die "missing command: $command_name (pkg install -y curl tar xz-utils coreutils)"
   done
+  [ -n "$PATCHELF" ] \
+    || die "missing patchelf (pkg install -y patchelf)"
 }
 
 ensure_node_for() {
@@ -211,7 +227,7 @@ install_node() {
     || die "Node v$version checksum mismatch"
   rm -rf "$staging"; mkdir -p "$staging"
   tar xJf "$archive" --strip-components=1 -C "$staging" || die "failed to extract Node"
-  env -u LD_PRELOAD "$PREFIX/glibc/bin/patchelf" \
+  env -u LD_PRELOAD "$PATCHELF" \
     --set-interpreter "$PREFIX/glibc/lib/ld-linux-aarch64.so.1" "$staging/bin/node" \
     || die "patchelf failed"
   env -u LD_PRELOAD "$staging/bin/node" --version >/dev/null \

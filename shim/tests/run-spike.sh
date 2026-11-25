@@ -7,7 +7,11 @@ D="${SPIKE_DIR:-$HOME/.dsh-termux-native-spike-2026-11-13}"
 NODE_VERSION="${NODE_VERSION:-24.19.0}"
 NODE_TARBALL="node-v${NODE_VERSION}-linux-arm64"
 LOADER="$PREFIX/glibc/lib/ld-linux-aarch64.so.1"
-PATCHELF="$PREFIX/glibc/bin/patchelf"
+for candidate in "${PATCHELF:-}" "$PREFIX/bin/patchelf" "$PREFIX/glibc/bin/patchelf"; do
+  [ -n "$candidate" ] || continue
+  if [ -x "$candidate" ]; then PATCHELF="$candidate"; break; fi
+done
+[ -x "${PATCHELF:-}" ] || { echo "!! missing patchelf (pkg install -y patchelf)" >&2; exit 1; }
 SHIM="$D/libdsh-termux-native-link.so"
 SPIKE="$D/spike.mjs"
 
